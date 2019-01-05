@@ -5,21 +5,26 @@
     android:layout_height="match_parent" >
 
     <Button
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:id="@+id/take_picture"
-        android:text="Take a Picture" />
-
-    <ImageView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:id="@+id/picture"
-        android:layout_gravity="center_horizontal" />
+        android:gravity="center"
+        android:layout_gravity="center"
+        android:layout_margin="@dimen/activity_vertical_margin"
+        android:id="@+id/take_picture"
+        android:text="Take a Picture" />
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:textSize="25sp"
+        android:gravity="center"
         android:id="@+id/rgb"
+        android:layout_gravity="center" />
+
+    <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:id="@+id/picture"
         android:layout_gravity="center_horizontal" />
 
 </LinearLayout>
