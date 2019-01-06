@@ -3,7 +3,11 @@ package com.example.admin.cameracolorimeterdemo;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.Point;
+import android.graphics.drawable.BitmapDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.provider.MediaStore;
@@ -109,7 +113,7 @@ public class MainActivity extends AppCompatActivity {
                     try {
 //                        Log.d("MainActivity", "in switch");
                         bitmap = BitmapFactory.decodeStream(getContentResolver().
-                                openInputStream(imageUri));
+                                openInputStream(imageUri)).copy(Bitmap.Config.ARGB_8888, true);
                         pic.setImageBitmap(bitmap);
 
                         displayColorInfo();
@@ -123,20 +127,28 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    @Override
+    public void onDestroy()
+    {
+        bitmap.recycle();
+        super.onDestroy();
+    }
+
     private void displayColorInfo() {
         if (android.os.Build.VERSION.SDK_INT >= 24) {
             isHigherSDK = true;
         }
 
+        ArrayList<Point> points = new ArrayList<>();
+        points.add(new Point(300, 200));
+        points.add(new Point(400, 200));
+        points.add(new Point(300, 250));
+        points.add(new Point(400, 250));
+
         ArrayList<Integer> lists = new ArrayList<>();
-        int color1 = bitmap.getPixel(200, 150);
-        lists.add(color1);
-        int color2 = bitmap.getPixel(400, 150);
-        lists.add(color2);
-        int color3 = bitmap.getPixel(200, 300);
-        lists.add(color3);
-        int color4 = bitmap.getPixel(400, 300);
-        lists.add(color4);
+        for (Point p : points) {
+            lists.add(bitmap.getPixel(p.x, p.y));
+        }
         int sampleCount = lists.size();
         String output = "";
         int[] average;
@@ -149,12 +161,12 @@ public class MainActivity extends AppCompatActivity {
         for (int sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++) {
             Integer[] channels = getColorChannels(lists.get(sampleIndex));
             if (isHigherSDK) {
-                output += sampleIndex + ": " + channels[0] + ", " + channels[1] + ", " + channels[2] + ", " + channels[3] + " (" + ((double) channels[4] / 1000) + ")" + "\n";
+                output += (sampleIndex + 1) + ": " + channels[0] + ", " + channels[1] + ", " + channels[2] + ", " + channels[3] + " (" + ((double) channels[4] / 1000) + ")" + "\n";
                 for (int channelIndex = 0; channelIndex < average.length; channelIndex++) {
                     average[channelIndex] += channels[channelIndex];
                 }
             } else {
-                output += sampleIndex + ": " + channels[0] + ", " + channels[1] + ", " + channels[2] + ", " + channels[3] + "\n";
+                output += (sampleIndex + 1) + ": " + channels[0] + ", " + channels[1] + ", " + channels[2] + ", " + channels[3] + "\n";
                 for (int channelIndex = 0; channelIndex < average.length; channelIndex++) {
                     average[channelIndex] += channels[channelIndex];
                 }
@@ -170,6 +182,23 @@ public class MainActivity extends AppCompatActivity {
         }
         text.setText(output);
         text.setTextColor(Color.argb(average[3], average[0], average[1], average[2]));
+
+        try {
+            Canvas canvas = new Canvas(bitmap);
+            Paint paint = new Paint();
+            paint.setColor(Color.YELLOW);
+            paint.setStrokeWidth(7.0f);
+            paint.setTextSize(30.0f);
+            paint.setDither(true);
+            int pointNum = 1;
+            for (Point p : points) {
+                canvas.drawPoint(p.x, p.y, paint);
+                canvas.drawText(String.valueOf(pointNum++), p.x + 10, p.y - 10, paint);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException(e);
+        }
     }
 
     private Integer[] getColorChannels(int color) {
