@@ -1,5 +1,6 @@
 package com.example.admin.cameracolorimeterdemo;
 
+import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -7,19 +8,15 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Point;
-import android.graphics.PorterDuff;
-import android.graphics.PorterDuffXfermode;
-import android.graphics.Rect;
-import android.graphics.RectF;
-import android.graphics.drawable.BitmapDrawable;
+import android.hardware.camera2.CameraAccessException;
+import android.hardware.camera2.CameraCharacteristics;
+import android.hardware.camera2.CameraManager;
 import android.net.Uri;
 import android.os.Build;
 import android.provider.MediaStore;
-import android.support.annotation.RequiresApi;
 import android.support.v4.content.FileProvider;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
@@ -80,6 +77,7 @@ public class MainActivity extends AppCompatActivity {
 //                Intent intent = new Intent("android.media.action.IMAGE_CAPTURE");
                 Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
                 intent.putExtra(MediaStore.EXTRA_OUTPUT, imageUri);
+                toggleFlashLight(true);
                 startActivityForResult(intent, PIC_TAKEN);
             }
         });
@@ -96,20 +94,6 @@ public class MainActivity extends AppCompatActivity {
                 int y = (int) (rawY * (bmpHeight / height));
                 if (event.getAction() == MotionEvent.ACTION_UP) {
                     displayColorInfo(x, y);
-
-//                    int color = bitmap.getPixel(x, y);
-//                    int r = Color.red(color);
-//                    int g = Color.green(color);
-//                    int b = Color.blue(color);
-//                    int a = Color.alpha(color);
-//
-//                    if (android.os.Build.VERSION.SDK_INT >= 24) {
-//                        float l = Color.luminance(color);
-//                        text.setText("Coordinate: " + x + ", " + y + "\n" + r + ", " + g + ", " + b + ", " + a + " (" + l + ")");
-//                    } else {
-//                        text.setText("Coordinate: " + x + ", " + y + "\n" + r + ", " + g + ", " + b + ", " + a);
-//                    }
-//                    text.setTextColor(Color.argb(a, r, g, b));
                 }
                 return true;
             }
@@ -122,7 +106,7 @@ public class MainActivity extends AppCompatActivity {
             case PIC_TAKEN:
                 if (resultCode == RESULT_OK) {
                     try {
-//                        Log.d("MainActivity", "in switch");
+                        toggleFlashLight(false);
                         bitmap0 = BitmapFactory.decodeStream(getContentResolver().
                                 openInputStream(imageUri));
                         bitmap = bitmap0.copy(Bitmap.Config.ARGB_8888, true);
@@ -145,8 +129,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
-    public void onDestroy()
-    {
+    public void onDestroy() {
         bitmap.recycle();
         super.onDestroy();
     }
@@ -168,37 +151,53 @@ public class MainActivity extends AppCompatActivity {
         }
         int sampleCount = lists.size();
         String output = "";
-        int[] average;
-        if (isHigherSDK) {
-            average = new int[5];
-        } else {
-            average = new int[4];
-        }
+//        int[] average;
+//        if (isHigherSDK) {
+//            average = new int[5];
+//        } else {
+//            average = new int[4];
+//        }
+
+        float[] average;
+        average = new float[3];
 
         for (int sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++) {
-            Integer[] channels = getColorChannels(lists.get(sampleIndex));
-            if (isHigherSDK) {
-                output += (sampleIndex + 1) + ": " + channels[0] + ", " + channels[1] + ", " + channels[2] + ", " + channels[3] + " (" + ((double) channels[4] / 1000) + ")" + "\n";
-                for (int channelIndex = 0; channelIndex < average.length; channelIndex++) {
-                    average[channelIndex] += channels[channelIndex];
-                }
-            } else {
-                output += (sampleIndex + 1) + ": " + channels[0] + ", " + channels[1] + ", " + channels[2] + ", " + channels[3] + "\n";
-                for (int channelIndex = 0; channelIndex < average.length; channelIndex++) {
-                    average[channelIndex] += channels[channelIndex];
-                }
+//            Integer[] channels = getRGBChannels(lists.get(sampleIndex));
+//            if (isHigherSDK) {
+//                output += (sampleIndex + 1) + "- R: " + channels[0] + ", G: " + channels[1] + ", B: " + channels[2] + ", a: " + channels[3] + " (L: " + ((double) channels[4] / 1000) + ")" + "\n";
+//                for (int channelIndex = 0; channelIndex < average.length; channelIndex++) {
+//                    average[channelIndex] += channels[channelIndex];
+//                }
+//            } else {
+//                output += (sampleIndex + 1) + ": " + channels[0] + ", " + channels[1] + ", " + channels[2] + ", " + channels[3] + "\n";
+//                for (int channelIndex = 0; channelIndex < average.length; channelIndex++) {
+//                    average[channelIndex] += channels[channelIndex];
+//                }
+//            }
+//        }
+//        for (int channelIndex = 0; channelIndex < average.length; channelIndex++) {
+//            average[channelIndex] /= sampleCount;
+//        }
+//        if (isHigherSDK) {
+//            output += "Average- R: " + average[0] + ", G: " + average[1]  + ", B: " + average[2] + ", a: " + average[3]  + " (L: " + ((double) average[4] / 1000) + ")";
+//        } else {
+//            output += "Average: " + average[0] + ", " + average[1] + ", " + average[2] + ", " + average[3] ;
+//        }
+//        text.setText(output);
+//        text.setTextColor(Color.argb(average[3], average[0], average[1], average[2]));
+
+            float[] channels = getHSVChannels(lists.get(sampleIndex));
+            output += (sampleIndex + 1) + "- H: " + channels[0] + ", S: " + channels[1] + ", V: " + channels[2] + "\n";
+            for (int channelIndex = 0; channelIndex < average.length; channelIndex++) {
+                average[channelIndex] += channels[channelIndex];
             }
         }
         for (int channelIndex = 0; channelIndex < average.length; channelIndex++) {
             average[channelIndex] /= sampleCount;
         }
-        if (isHigherSDK) {
-            output += "Average: " + average[0] + ", " + average[1]  + ", " + average[2] + ", " + average[3]  + " (" + ((double) average[4] / 1000) + ")";
-        } else {
-            output += "Average: " + average[0] + ", " + average[1] + ", " + average[2] + ", " + average[3] ;
-        }
+        output += "Average- H: " + average[0] + ", S: " + average[1] + ", V: " + average[2];
         text.setText(output);
-        text.setTextColor(Color.argb(average[3], average[0], average[1], average[2]));
+        text.setTextColor(Color.HSVToColor(average));
 
         try {
             paint = new Paint();
@@ -217,7 +216,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private Integer[] getColorChannels(int color) {
+    private Integer[] getRGBChannels(int color) {
         ArrayList<Integer> channelsList = new ArrayList<>();
         int r = Color.red(color);
         channelsList.add(r);
@@ -232,7 +231,14 @@ public class MainActivity extends AppCompatActivity {
             channelsList.add((int) l);
         }
         Integer[] channelsArray = new Integer[channelsList.size()];
+
         return channelsList.toArray(channelsArray);
+    }
+
+    private float[] getHSVChannels(int color) {
+        float[] hsv = new float[3];
+        Color.colorToHSV(color, hsv);
+        return hsv;
     }
 
     private void clearCanvas() {
@@ -240,5 +246,32 @@ public class MainActivity extends AppCompatActivity {
         bitmap = bitmap0.copy(Bitmap.Config.ARGB_8888, true);
         pic.setImageBitmap(bitmap);
         canvas = new Canvas(bitmap);
+    }
+
+//    @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
+    public void toggleFlashLight(boolean openOrClose) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            try {
+                //获取CameraManager
+                CameraManager mCameraManager = (CameraManager) this.getSystemService(Context.CAMERA_SERVICE);
+                //获取当前手机所有摄像头设备ID
+                String[] ids  = mCameraManager.getCameraIdList();
+                for (String id : ids) {
+                    CameraCharacteristics c = mCameraManager.getCameraCharacteristics(id);
+                    //查询该摄像头组件是否包含闪光灯
+                    Boolean flashAvailable = c.get(CameraCharacteristics.FLASH_INFO_AVAILABLE);
+                    Integer lensFacing = c.get(CameraCharacteristics.LENS_FACING);
+                    if (flashAvailable != null && flashAvailable
+                            && lensFacing != null && lensFacing == CameraCharacteristics.LENS_FACING_BACK) {
+                        //打开或关闭手电筒
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                            mCameraManager.setTorchMode(id, openOrClose);
+                        }
+                    }
+                }
+            } catch (CameraAccessException e) {
+                e.printStackTrace();
+            }
+        }
     }
 }
