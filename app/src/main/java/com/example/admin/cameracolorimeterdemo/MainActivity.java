@@ -7,6 +7,10 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Point;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffXfermode;
+import android.graphics.Rect;
+import android.graphics.RectF;
 import android.graphics.drawable.BitmapDrawable;
 import android.net.Uri;
 import android.os.Build;
@@ -34,7 +38,11 @@ public class MainActivity extends AppCompatActivity {
     private ImageView pic;
     private Uri imageUri;
     private TextView text;
-    Bitmap bitmap;
+    Bitmap bitmap0, bitmap;
+    Canvas canvas;
+    Paint paint;
+    float bmpWidth;
+    float bmpHeight;
 
     boolean isHigherSDK = false;
 
@@ -79,26 +87,29 @@ public class MainActivity extends AppCompatActivity {
         pic.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
-                double width = v.getWidth();
-                double bmpWidth = bitmap.getWidth();
-                double height = v.getHeight();
-                double bmpHeight = bitmap.getHeight();
-                int x = (int) (event.getX() * (bmpWidth / width));
-                int y = (int) (event.getY() * (bmpHeight / height));
-                if (event.getAction() == MotionEvent.ACTION_DOWN) {
-                    int color = bitmap.getPixel(x, y);
-                    int r = Color.red(color);
-                    int g = Color.green(color);
-                    int b = Color.blue(color);
-                    int a = Color.alpha(color);
+                clearCanvas();
+                double width = v.getWidth(); // 640
+                double height = v.getHeight(); // 480
+                double rawX = event.getX();
+                double rawY = event.getY();
+                int x = (int) (rawX * (bmpWidth / width));
+                int y = (int) (rawY * (bmpHeight / height));
+                if (event.getAction() == MotionEvent.ACTION_UP) {
+                    displayColorInfo(x, y);
 
-                    if (android.os.Build.VERSION.SDK_INT >= 24) {
-                        float l = Color.luminance(color);
-                        text.setText("Coordinate: " + x + ", " + y + "\n" + r + ", " + g + ", " + b + ", " + a + " (" + l + ")");
-                    } else {
-                        text.setText("Coordinate: " + x + ", " + y + "\n" + r + ", " + g + ", " + b + ", " + a);
-                    }
-                    text.setTextColor(Color.argb(a, r, g, b));
+//                    int color = bitmap.getPixel(x, y);
+//                    int r = Color.red(color);
+//                    int g = Color.green(color);
+//                    int b = Color.blue(color);
+//                    int a = Color.alpha(color);
+//
+//                    if (android.os.Build.VERSION.SDK_INT >= 24) {
+//                        float l = Color.luminance(color);
+//                        text.setText("Coordinate: " + x + ", " + y + "\n" + r + ", " + g + ", " + b + ", " + a + " (" + l + ")");
+//                    } else {
+//                        text.setText("Coordinate: " + x + ", " + y + "\n" + r + ", " + g + ", " + b + ", " + a);
+//                    }
+//                    text.setTextColor(Color.argb(a, r, g, b));
                 }
                 return true;
             }
@@ -112,11 +123,17 @@ public class MainActivity extends AppCompatActivity {
                 if (resultCode == RESULT_OK) {
                     try {
 //                        Log.d("MainActivity", "in switch");
-                        bitmap = BitmapFactory.decodeStream(getContentResolver().
-                                openInputStream(imageUri)).copy(Bitmap.Config.ARGB_8888, true);
+                        bitmap0 = BitmapFactory.decodeStream(getContentResolver().
+                                openInputStream(imageUri));
+                        bitmap = bitmap0.copy(Bitmap.Config.ARGB_8888, true);
                         pic.setImageBitmap(bitmap);
+                        canvas = new Canvas(bitmap);
 
-                        displayColorInfo();
+                        bmpWidth = bitmap.getWidth(); // 2976
+                        bmpHeight = bitmap.getHeight(); // 3968
+                        int centerX = (int) (bmpWidth / 2);
+                        int centerY = (int) (bmpHeight / 2);
+                        displayColorInfo(centerX, centerY);
                     } catch (FileNotFoundException e) {
                         throw new RuntimeException(e);
                     }
@@ -134,16 +151,16 @@ public class MainActivity extends AppCompatActivity {
         super.onDestroy();
     }
 
-    private void displayColorInfo() {
+    private void displayColorInfo(int centerX, int centerY) {
         if (android.os.Build.VERSION.SDK_INT >= 24) {
             isHigherSDK = true;
         }
 
         ArrayList<Point> points = new ArrayList<>();
-        points.add(new Point(300, 200));
-        points.add(new Point(400, 200));
-        points.add(new Point(300, 250));
-        points.add(new Point(400, 250));
+        points.add(new Point(centerX - 30, centerY - 30));
+        points.add(new Point(centerX + 30, centerY - 30));
+        points.add(new Point(centerX - 30, centerY + 30));
+        points.add(new Point(centerX + 30, centerY + 30));
 
         ArrayList<Integer> lists = new ArrayList<>();
         for (Point p : points) {
@@ -184,11 +201,10 @@ public class MainActivity extends AppCompatActivity {
         text.setTextColor(Color.argb(average[3], average[0], average[1], average[2]));
 
         try {
-            Canvas canvas = new Canvas(bitmap);
-            Paint paint = new Paint();
-            paint.setColor(Color.YELLOW);
-            paint.setStrokeWidth(7.0f);
-            paint.setTextSize(30.0f);
+            paint = new Paint();
+            paint.setColor(Color.RED);
+            paint.setStrokeWidth(30.0f);
+            paint.setTextSize(100.0f);
             paint.setDither(true);
             int pointNum = 1;
             for (Point p : points) {
@@ -217,5 +233,12 @@ public class MainActivity extends AppCompatActivity {
         }
         Integer[] channelsArray = new Integer[channelsList.size()];
         return channelsList.toArray(channelsArray);
+    }
+
+    private void clearCanvas() {
+//        pic.invalidate();
+        bitmap = bitmap0.copy(Bitmap.Config.ARGB_8888, true);
+        pic.setImageBitmap(bitmap);
+        canvas = new Canvas(bitmap);
     }
 }
