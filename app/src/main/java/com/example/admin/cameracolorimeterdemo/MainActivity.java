@@ -17,6 +17,7 @@ import android.provider.MediaStore;
 import android.support.v4.content.FileProvider;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.text.method.ScrollingMovementMethod;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
@@ -51,6 +52,7 @@ public class MainActivity extends AppCompatActivity {
         Button takePic = (Button) findViewById(R.id.take_picture);
         pic = (ImageView) findViewById(R.id.picture);
         text = (TextView) findViewById(R.id.rgb);
+        text.setMovementMethod(ScrollingMovementMethod.getInstance());
 
         takePic.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -62,7 +64,7 @@ public class MainActivity extends AppCompatActivity {
                     }
                     outputFile.createNewFile();
                 } catch (IOException e) {
-                    throw new RuntimeException(e);
+                    e.printStackTrace();
                 }
 
                 if (Build.VERSION.SDK_INT >= 24) {
@@ -77,7 +79,7 @@ public class MainActivity extends AppCompatActivity {
 //                Intent intent = new Intent("android.media.action.IMAGE_CAPTURE");
                 Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
                 intent.putExtra(MediaStore.EXTRA_OUTPUT, imageUri);
-                toggleFlashLight(true);
+//                toggleFlashLight(true);
                 startActivityForResult(intent, PIC_TAKEN);
             }
         });
@@ -106,7 +108,7 @@ public class MainActivity extends AppCompatActivity {
             case PIC_TAKEN:
                 if (resultCode == RESULT_OK) {
                     try {
-                        toggleFlashLight(false);
+//                        toggleFlashLight(false);
                         bitmap0 = BitmapFactory.decodeStream(getContentResolver().
                                 openInputStream(imageUri));
                         bitmap = bitmap0.copy(Bitmap.Config.ARGB_8888, true);
@@ -119,7 +121,7 @@ public class MainActivity extends AppCompatActivity {
                         int centerY = (int) (bmpHeight / 2);
                         displayColorInfo(centerX, centerY);
                     } catch (FileNotFoundException e) {
-                        throw new RuntimeException(e);
+                        e.printStackTrace();
                     }
                 }
                 break;
@@ -130,20 +132,25 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public void onDestroy() {
+        bitmap0.recycle();
         bitmap.recycle();
         super.onDestroy();
     }
 
     private void displayColorInfo(int centerX, int centerY) {
-        if (android.os.Build.VERSION.SDK_INT >= 24) {
+        if (Build.VERSION.SDK_INT >= 24) {
             isHigherSDK = true;
         }
 
         ArrayList<Point> points = new ArrayList<>();
-        points.add(new Point(centerX - 30, centerY - 30));
-        points.add(new Point(centerX + 30, centerY - 30));
-        points.add(new Point(centerX - 30, centerY + 30));
-        points.add(new Point(centerX + 30, centerY + 30));
+
+        int row = 4;
+        int col = 4;
+        for (int i = 0; i < row; i++) {
+            for (int j = 0; j < col; j++) {
+                points.add(new Point(centerX - 30 + 60 * j / col, centerY - 30 + 60 * i / row));
+            }
+        }
 
         ArrayList<Integer> lists = new ArrayList<>();
         for (Point p : points) {
@@ -202,17 +209,16 @@ public class MainActivity extends AppCompatActivity {
         try {
             paint = new Paint();
             paint.setColor(Color.RED);
-            paint.setStrokeWidth(30.0f);
-            paint.setTextSize(100.0f);
+            paint.setStrokeWidth(5.0f);
+            paint.setTextSize(15.0f);
             paint.setDither(true);
             int pointNum = 1;
             for (Point p : points) {
                 canvas.drawPoint(p.x, p.y, paint);
-                canvas.drawText(String.valueOf(pointNum++), p.x + 10, p.y - 10, paint);
+                canvas.drawText(String.valueOf(pointNum++), p.x + 2, p.y - 2, paint);
             }
         } catch (Exception e) {
             e.printStackTrace();
-            throw new RuntimeException(e);
         }
     }
 
@@ -226,7 +232,7 @@ public class MainActivity extends AppCompatActivity {
         channelsList.add(b);
         int a = Color.alpha(color);
         channelsList.add(a);
-        if (android.os.Build.VERSION.SDK_INT >= 24) {
+        if (Build.VERSION.SDK_INT >= 24) {
             float l = Color.luminance(color) * 1000;
             channelsList.add((int) l);
         }
@@ -242,7 +248,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void clearCanvas() {
-//        pic.invalidate();
         bitmap = bitmap0.copy(Bitmap.Config.ARGB_8888, true);
         pic.setImageBitmap(bitmap);
         canvas = new Canvas(bitmap);
