@@ -2,34 +2,196 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:orientation="vertical"
     android:layout_width="match_parent"
-    android:layout_height="match_parent" >
+    android:layout_height="match_parent"
+    android:scrollbars="vertical"
+    android:id="@+id/linear_layout_outer">
 
-    <Button
+    <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:gravity="center"
-        android:layout_gravity="center"
-        android:layout_margin="@dimen/activity_vertical_margin"
-        android:id="@+id/take_picture"
-        android:text="Take a Picture" />
+        android:layout_gravity="center" >
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="@dimen/activity_vertical_margin"
+            android:id="@+id/take_picture"
+            android:background="@drawable/shapes"
+            android:text="  现场拍摄"
+            android:drawableLeft="@drawable/ic_camera_alt_black_24dp" />
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="@dimen/activity_vertical_margin"
+            android:id="@+id/retrieve_picture"
+            android:background="@drawable/shapes"
+            android:text="  本地图片"
+            android:drawableLeft="@drawable/ic_camera_black_24dp"/>
+    </LinearLayout>
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="160sp"
-        android:scrollbars="vertical"
-        android:focusable="true"
-        android:focusableInTouchMode="true"
-        android:textSize="15sp"
-        android:gravity="center"
-        android:id="@+id/rgb"
-        android:layout_gravity="center" />
-
-    <ImageView
+    <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:adjustViewBounds="true"
-        android:scaleType="fitCenter"
-        android:id="@+id/picture"
-        android:layout_gravity="center_horizontal" />
+        android:layout_height="match_parent">
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical" >
+
+            <ImageView
+                android:layout_width="match_parent"
+                android:layout_height="350dp"
+                android:adjustViewBounds="true"
+                android:scaleType="fitXY"
+                android:id="@+id/picture"
+                android:layout_gravity="center" />
+            <!--<com.makeramen.roundedimageview.RoundedImageView-->
+                <!--xmlns:app="http://schemas.android.com/apk/res-auto"-->
+                <!--app:riv_corner_radius="30dip"-->
+                <!--app:riv_border_width="2dip"-->
+                <!--app:riv_border_color="#333333"-->
+                <!--app:riv_mutate_background="true"-->
+                <!--app:riv_tile_mode="repeat"-->
+                <!--app:riv_oval="true"-->
+                <!--android:layout_width="match_parent"-->
+                <!--android:layout_height="320dp"-->
+                <!--android:adjustViewBounds="true"-->
+                <!--android:scaleType="fitCenter"-->
+                <!--android:id="@+id/picture"-->
+                <!--android:layout_gravity="center_horizontal" />-->
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:id="@+id/alert"
+                android:textSize="20sp"
+                android:gravity="center" />
+
+            <!--<LinearLayout-->
+                <!--android:layout_height="wrap_content"-->
+                <!--android:layout_width="match_parent"-->
+                <!--android:layout_gravity="center"-->
+                <!--android:id="@+id/linear_layout_hsv" >-->
+                <!--<TextView-->
+                    <!--android:layout_width="0dp"-->
+                    <!--android:layout_height="wrap_content"-->
+                    <!--android:layout_weight="1"-->
+                    <!--android:textSize="20sp"-->
+                    <!--android:id="@+id/hsvh"-->
+                    <!--android:padding="10dp"-->
+                    <!--android:gravity="center"-->
+                    <!--android:layout_gravity="center" />-->
+                <!--<TextView-->
+                    <!--android:layout_width="0dp"-->
+                    <!--android:layout_height="wrap_content"-->
+                    <!--android:layout_weight="1"-->
+                    <!--android:textSize="20sp"-->
+                    <!--android:id="@+id/hsvs"-->
+                    <!--android:padding="10dp"-->
+                    <!--android:gravity="center"-->
+                    <!--android:layout_gravity="center" />-->
+                <!--<TextView-->
+                    <!--android:layout_width="0dp"-->
+                    <!--android:layout_height="wrap_content"-->
+                    <!--android:layout_weight="1"-->
+                    <!--android:textSize="20sp"-->
+                    <!--android:id="@+id/hsvv"-->
+                    <!--android:padding="10dp"-->
+                    <!--android:gravity="center"-->
+                    <!--android:layout_gravity="center" />-->
+            <!--</LinearLayout>-->
+
+            <com.daimajia.swipe.SwipeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:id="@+id/swipe_layout_hsv" >
+
+                <!-- Bottom View Start-->
+                <LinearLayout
+                    android:layout_height="wrap_content"
+                    android:layout_width="match_parent"
+                    android:layout_gravity="right"
+                    android:id="@+id/linear_layout_hsv" >
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:textSize="20sp"
+                        android:id="@+id/hsvh"
+                        android:padding="10dp"
+                        android:gravity="center"
+                        android:layout_gravity="center" />
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:textSize="20sp"
+                        android:id="@+id/hsvs"
+                        android:padding="10dp"
+                        android:gravity="center"
+                        android:layout_gravity="center" />
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:textSize="20sp"
+                        android:id="@+id/hsvv"
+                        android:padding="10dp"
+                        android:gravity="center"
+                        android:layout_gravity="center" />
+                </LinearLayout>
+                <!-- Bottom View End-->
+
+                <!-- Surface View Start -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/linear_layout_hsv_surface" >
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:id="@+id/text_swipe_layout_surface"
+                        android:textSize="20dp"
+                        android:text="@string/swipe_surface_text"
+                        android:gravity="center"
+                        android:layout_gravity="center" />
+                </LinearLayout>
+
+                <!-- Surface View End -->
+            </com.daimajia.swipe.SwipeLayout>
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:id="@+id/linear_layout_spinner" >
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="20sp"
+                    android:layout_margin="20dp"
+                    android:id="@+id/spinner_title"
+                    android:text="@string/spinner_prompt_title"
+                    android:layout_gravity="center" />
+                <Spinner
+                    android:layout_width="200dp"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:padding="10dp"
+                    android:background="@drawable/shapes"
+                    android:id="@+id/spinner"
+                    android:entries="@array/analyte"
+                    android:spinnerMode="dropdown" >
+                </Spinner>
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="20sp"
+                android:id="@+id/conc"
+                android:layout_gravity="center" />
+
+        </LinearLayout>
+
+    </ScrollView>
 
 </LinearLayout>

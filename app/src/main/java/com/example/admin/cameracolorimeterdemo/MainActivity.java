@@ -6,65 +6,112 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Point;
+import android.graphics.Typeface;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraManager;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Bundle;
 import android.provider.MediaStore;
 import android.support.v4.content.FileProvider;
 import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
-import android.text.method.ScrollingMovementMethod;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
+import android.widget.AdapterView;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.Spinner;
 import android.widget.TextView;
+import android.widget.Toast;
+
+import com.daimajia.swipe.SwipeLayout;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.UUID;
 
 public class MainActivity extends AppCompatActivity {
 
     public static final int PIC_TAKEN = 1;
+    public static final int PIC_RETRIEVED = 2;
 
-    private ImageView pic;
+    private ImageView sampleImageView;
     private Uri imageUri;
-    private TextView text;
-    Bitmap bitmap0, bitmap;
-    Canvas canvas;
-    Paint paint;
-    float bmpWidth;
-    float bmpHeight;
+    private TextView HSVHTextView, HSVSTextView, HSVVTextView;
+    private Bitmap decodedBitmap, workingBitmap;
+    private Canvas canvas;
+    private Paint paint;
+    private float bmpWidth;
+    private float bmpHeight;
+    private File outputFile;
+    private TextView alertTextView;
+    private LinearLayout outerLinearLayout;
+    private SwipeLayout swipeLayout;
+    private LinearLayout swipeSurfaceLinearLayout;
+    private LinearLayout spinnerLinearLayout;
+    private TextView swipeSurfaceTextView;
+    private TextView spinnerTextView;
+    private Spinner spinner;
+    private TextView concTextView;
 
-    boolean isHigherSDK = false;
+    private static byte selectedAnalyte = 0; // 0 for glucose, 1 for uric acid
+    private static boolean isInitialized = false;
+
+    private static CustomSwiperListener swipeListener = new CustomSwiperListener();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        Button takePic = (Button) findViewById(R.id.take_picture);
-        pic = (ImageView) findViewById(R.id.picture);
-        text = (TextView) findViewById(R.id.rgb);
-        text.setMovementMethod(ScrollingMovementMethod.getInstance());
+//        FadingActionBarHelper helper = new FadingActionBarHelper()
+//                .actionBarBackground(R.drawable.ab_background)
+//                .headerLayout(R.layout.header)
+//                .contentLayout(R.layout.activity_main);
+//        setContentView(helper.createView(this));
+//        helper.initActionBar(this);
 
-        takePic.setOnClickListener(new View.OnClickListener() {
+        Button takePicBtn = (Button) findViewById(R.id.take_picture);
+        Button retrievePicBtn = (Button) findViewById(R.id.retrieve_picture);
+        sampleImageView = (ImageView) findViewById(R.id.picture);
+        HSVHTextView = (TextView) findViewById(R.id.hsvh);
+        HSVSTextView = (TextView) findViewById(R.id.hsvs);
+        HSVVTextView = (TextView) findViewById(R.id.hsvv);
+        alertTextView = (TextView) findViewById(R.id.alert);
+
+        outerLinearLayout = (LinearLayout) findViewById(R.id.linear_layout_outer);
+        swipeLayout = (SwipeLayout) findViewById(R.id.swipe_layout_hsv);
+        swipeSurfaceLinearLayout = (LinearLayout) findViewById(R.id.linear_layout_hsv_surface);
+        swipeSurfaceTextView = (TextView) findViewById(R.id.text_swipe_layout_surface);
+        spinnerLinearLayout = (LinearLayout) findViewById(R.id.linear_layout_spinner);
+        spinnerTextView = (TextView) findViewById(R.id.spinner_title);
+        spinner = (Spinner) findViewById(R.id.spinner);
+        concTextView = (TextView) findViewById(R.id.conc);
+
+        alertTextView.setVisibility(View.GONE);
+        swipeSurfaceTextView.setVisibility(View.GONE);
+        spinnerLinearLayout.setVisibility(View.GONE);
+
+        takePicBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                File outputFile = new File(getExternalCacheDir(), "output_img.jpg");
+                String fileName = UUID.randomUUID().toString().replaceAll("-", "") + ".jpg";
+                outputFile = new File(getExternalCacheDir(), fileName);
                 try {
                     if (outputFile.exists()) {
                         outputFile.delete();
                     }
                     outputFile.createNewFile();
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    Log.e("Exception", e.getMessage(), e);
                 }
 
                 if (Build.VERSION.SDK_INT >= 24) {
@@ -81,25 +128,95 @@ public class MainActivity extends AppCompatActivity {
                 intent.putExtra(MediaStore.EXTRA_OUTPUT, imageUri);
 //                toggleFlashLight(true);
                 startActivityForResult(intent, PIC_TAKEN);
+                isInitialized = true;
             }
         });
 
-        pic.setOnTouchListener(new View.OnTouchListener() {
+        sampleImageView.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
-                clearCanvas();
-                double width = v.getWidth(); // 640
-                double height = v.getHeight(); // 480
-                double rawX = event.getX();
-                double rawY = event.getY();
-                int x = (int) (rawX * (bmpWidth / width));
-                int y = (int) (rawY * (bmpHeight / height));
-                if (event.getAction() == MotionEvent.ACTION_UP) {
-                    displayColorInfo(x, y);
+
+                if (isInitialized) {
+                    clearCanvas();
+                    double width = v.getWidth(); // 640
+                    double height = v.getHeight(); // 480
+                    double rawX = event.getX();
+                    double rawY = event.getY();
+                    int x = (int) Math.round(rawX * (bmpWidth / width));
+                    int y = (int) Math.round(rawY * (bmpHeight / height));
+                    if (event.getAction() == MotionEvent.ACTION_UP) {
+                        getColorInfo(x, y);
+                    }
                 }
                 return true;
             }
         });
+
+        retrievePicBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                imageUri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
+                Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+                intent.setDataAndType(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,"image/*");
+                startActivityForResult(intent, PIC_RETRIEVED);
+                isInitialized = true;
+            }
+        });
+
+        spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+
+                if (isInitialized) {
+                    String item = (String) spinner.getSelectedItem();
+                    Toast.makeText(MainActivity.this, "现在对" + item + "进行线性分析～", Toast.LENGTH_SHORT).show();
+                    if ("尿酸".equals(item)) {
+                        selectedAnalyte = 1;
+                    } else {
+                        selectedAnalyte = 0;
+                    }
+                    displayConcResults();
+                }
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+                Toast.makeText(MainActivity.this, "尚未选择合适的分析物！", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+//    @Override
+//    public boolean onCreateOptionsMenu(Menu menu) {
+//        getMenuInflater().inflate(R.menu.activity_menu, menu);
+//        return true;
+//    }
+
+    private void onBitmapInit(Uri imageUri) throws FileNotFoundException {
+//        toggleFlashLight(false);
+        decodedBitmap = BitmapFactory.decodeStream(getContentResolver().openInputStream(imageUri));
+        int bitmapWidth = decodedBitmap.getWidth();
+        int bitmapHeight = decodedBitmap.getHeight();
+        Matrix matrix = new Matrix();
+        matrix.setRotate(0);
+
+        decodedBitmap = Bitmap.createBitmap(decodedBitmap, 0, 0, bitmapWidth, bitmapHeight, matrix, false);
+        clearCanvas();
+
+        bmpWidth = workingBitmap.getWidth(); // 2976
+        bmpHeight = workingBitmap.getHeight(); // 3968
+        int centerX = Math.round(bmpWidth / 2);
+        int centerY = Math.round(bmpHeight / 2);
+
+//            By default, displaying color info on the center of the image
+        getColorInfo(centerX, centerY);
+    }
+
+    private void clearCanvas() {
+//        decodedBitmap.compress(Bitmap.CompressFormat.PNG, 100, os);
+        workingBitmap = decodedBitmap.copy(Bitmap.Config.ARGB_8888, true);
+        sampleImageView.setImageBitmap(workingBitmap);
+        canvas = new Canvas(workingBitmap);
     }
 
     @Override
@@ -108,20 +225,21 @@ public class MainActivity extends AppCompatActivity {
             case PIC_TAKEN:
                 if (resultCode == RESULT_OK) {
                     try {
-//                        toggleFlashLight(false);
-                        bitmap0 = BitmapFactory.decodeStream(getContentResolver().
-                                openInputStream(imageUri));
-                        bitmap = bitmap0.copy(Bitmap.Config.ARGB_8888, true);
-                        pic.setImageBitmap(bitmap);
-                        canvas = new Canvas(bitmap);
-
-                        bmpWidth = bitmap.getWidth(); // 2976
-                        bmpHeight = bitmap.getHeight(); // 3968
-                        int centerX = (int) (bmpWidth / 2);
-                        int centerY = (int) (bmpHeight / 2);
-                        displayColorInfo(centerX, centerY);
+                    onBitmapInit(imageUri);
                     } catch (FileNotFoundException e) {
-                        e.printStackTrace();
+                        Log.e("Exception", e.getMessage(), e);
+                    }
+                }
+                break;
+            case PIC_RETRIEVED:
+                if (resultCode == RESULT_OK && data != null) {
+                    Uri selectedImage = data.getData();
+                    if (selectedImage != null) {
+                        try {
+                            onBitmapInit(selectedImage);
+                        } catch (FileNotFoundException e) {
+                            Log.e("Exception", e.getMessage(), e);
+                        }
                     }
                 }
                 break;
@@ -132,18 +250,24 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public void onDestroy() {
-        bitmap0.recycle();
-        bitmap.recycle();
+        decodedBitmap.recycle();
+        workingBitmap.recycle();
+//        outputFile.delete();
         super.onDestroy();
     }
 
-    private void displayColorInfo(int centerX, int centerY) {
-        if (Build.VERSION.SDK_INT >= 24) {
-            isHigherSDK = true;
-        }
-
+    private void getColorInfo(int centerX, int centerY) {
         ArrayList<Point> points = new ArrayList<>();
+        ArrayList<Integer> lists = new ArrayList<>();
+        int printedTextColor = 0;
+        int sampleCount = 0;
 
+        String output = "";
+        float[] average;
+        float[] channels = null;
+        average = new float[3];
+
+//            Drawing 16 sampling points
         int row = 4;
         int col = 4;
         for (int i = 0; i < row; i++) {
@@ -152,22 +276,15 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
-        ArrayList<Integer> lists = new ArrayList<>();
         for (Point p : points) {
-            lists.add(bitmap.getPixel(p.x, p.y));
+            try {
+                lists.add(workingBitmap.getPixel(p.x, p.y));
+            } catch (IllegalArgumentException e) {}
         }
-        int sampleCount = lists.size();
-        String output = "";
-//        int[] average;
-//        if (isHigherSDK) {
-//            average = new int[5];
-//        } else {
-//            average = new int[4];
-//        }
 
-        float[] average;
-        average = new float[3];
+        sampleCount = lists.size();
 
+//        遍历取样点求取各通道均值
         for (int sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++) {
 //            Integer[] channels = getRGBChannels(lists.get(sampleIndex));
 //            if (isHigherSDK) {
@@ -190,11 +307,12 @@ public class MainActivity extends AppCompatActivity {
 //        } else {
 //            output += "Average: " + average[0] + ", " + average[1] + ", " + average[2] + ", " + average[3] ;
 //        }
-//        text.setText(output);
-//        text.setTextColor(Color.argb(average[3], average[0], average[1], average[2]));
+//        colorDataTextView.setText(output);
+//        colorDataTextView.setTextColor(Color.argb(average[3], average[0], average[1], average[2]));
 
-            float[] channels = getHSVChannels(lists.get(sampleIndex));
-            output += (sampleIndex + 1) + "- H: " + channels[0] + ", S: " + channels[1] + ", V: " + channels[2] + "\n";
+
+            channels = getHSVChannels(lists.get(sampleIndex));
+//            output += (sampleIndex + 1) + "- H: " + channels[0] + ", S: " + channels[1] + ", V: " + channels[2] + "\n";
             for (int channelIndex = 0; channelIndex < average.length; channelIndex++) {
                 average[channelIndex] += channels[channelIndex];
             }
@@ -202,9 +320,53 @@ public class MainActivity extends AppCompatActivity {
         for (int channelIndex = 0; channelIndex < average.length; channelIndex++) {
             average[channelIndex] /= sampleCount;
         }
-        output += "Average- H: " + average[0] + ", S: " + average[1] + ", V: " + average[2];
-        text.setText(output);
-        text.setTextColor(Color.HSVToColor(average));
+
+//        检查H通道均值合理性并输出
+        if (Math.abs(average[0] - channels[0]) > Math.sqrt(average[0])) {
+            output += "取值误差较大，请重新取点！";
+            alertTextView.setText(output);
+            alertTextView.setVisibility(View.VISIBLE);
+            alertTextView.setBackgroundColor(Color.BLACK);
+            alertTextView.setTextColor(Color.WHITE);
+        } else {
+            alertTextView.setVisibility(View.GONE);
+        }
+
+//        output += "均值为\nH:" + average[0] + "\nS: " + average[1] + "\nV: " + average[2];
+
+        swipeLayout.setShowMode(SwipeLayout.ShowMode.LayDown);
+        swipeLayout.addSwipeListener(swipeListener);
+
+        Typeface spaceMonoRegTypeFace = Typeface.createFromAsset(getAssets(), "SpaceMono-Regular.ttf");
+        HSVHTextView.setTypeface(spaceMonoRegTypeFace);
+        HSVSTextView.setTypeface(spaceMonoRegTypeFace);
+        HSVVTextView.setTypeface(spaceMonoRegTypeFace);
+
+        HSVHTextView.setText(String.format("%.3f", average[0]));
+        HSVSTextView.setText(String.format("%.3f", average[1]));
+        HSVVTextView.setText(String.format("%.3f", average[2]));
+
+        int color = Color.HSVToColor(average);
+//        outerLinearLayout.setBackgroundColor(color);
+
+        swipeSurfaceLinearLayout.setBackgroundColor(color);
+
+        if (Math.abs(color - Color.WHITE) < Math.abs(color - Color.BLACK)) {
+            printedTextColor = Color.BLACK;
+        } else {
+            printedTextColor = Color.WHITE;
+        }
+
+        swipeSurfaceTextView.setVisibility(View.VISIBLE);
+//        swipeSurfaceTextView.setTypeface(spaceMonoRegTypeFace);
+        swipeSurfaceTextView.setTextColor(printedTextColor);
+
+        HSVHTextView.setBackgroundColor(color);
+        HSVHTextView.setTextColor(printedTextColor);
+        HSVSTextView.setBackgroundColor(Color.HSVToColor(128, average));
+        HSVSTextView.setTextColor(printedTextColor);
+        HSVVTextView.setBackgroundColor(Color.HSVToColor(64, average));
+        HSVVTextView.setTextColor(Color.BLACK);
 
         try {
             paint = new Paint();
@@ -213,13 +375,18 @@ public class MainActivity extends AppCompatActivity {
             paint.setTextSize(15.0f);
             paint.setDither(true);
             int pointNum = 1;
+
             for (Point p : points) {
                 canvas.drawPoint(p.x, p.y, paint);
                 canvas.drawText(String.valueOf(pointNum++), p.x + 2, p.y - 2, paint);
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            Log.e("Exception", e.getMessage(), e);
         }
+
+        spinnerLinearLayout.setVisibility(View.VISIBLE);
+
+        displayConcResults();
     }
 
     private Integer[] getRGBChannels(int color) {
@@ -247,10 +414,9 @@ public class MainActivity extends AppCompatActivity {
         return hsv;
     }
 
-    private void clearCanvas() {
-        bitmap = bitmap0.copy(Bitmap.Config.ARGB_8888, true);
-        pic.setImageBitmap(bitmap);
-        canvas = new Canvas(bitmap);
+    private void displayConcResults() {
+        String concentration = "所选择回归曲线的序号为" + selectedAnalyte;
+        concTextView.setText(concentration);
     }
 
 //    @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
@@ -275,8 +441,41 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
             } catch (CameraAccessException e) {
-                e.printStackTrace();
+                Log.e("Exception", e.getMessage(), e);
             }
         }
+    }
+}
+
+class CustomSwiperListener implements SwipeLayout.SwipeListener {
+
+    @Override
+    public void onStartOpen(SwipeLayout layout) {
+
+    }
+
+    @Override
+    public void onOpen(SwipeLayout layout) {
+
+    }
+
+    @Override
+    public void onStartClose(SwipeLayout layout) {
+
+    }
+
+    @Override
+    public void onClose(SwipeLayout layout) {
+
+    }
+
+    @Override
+    public void onUpdate(SwipeLayout layout, int leftOffset, int topOffset) {
+
+    }
+
+    @Override
+    public void onHandRelease(SwipeLayout layout, float xvel, float yvel) {
+
     }
 }
