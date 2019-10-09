@@ -3,5 +3,7 @@
     <string-array name="analyte">
         <item>葡萄糖</item>
         <item>尿酸</item>
+        <item>肌氨酸</item>
+        <item>尿素</item>
     </string-array>
 </resources>

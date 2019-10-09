@@ -2,6 +2,7 @@ package com.example.admin.cameracolorimeterdemo;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
@@ -20,6 +21,7 @@ import android.provider.MediaStore;
 import android.support.v4.content.FileProvider;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.util.SparseArray;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.AdapterView;
@@ -36,12 +38,18 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 public class MainActivity extends AppCompatActivity {
 
     public static final int PIC_TAKEN = 1;
     public static final int PIC_RETRIEVED = 2;
+
+    public static final int SAMPLE_NUMBER_ROOT = 4; // 16 sample points
+
+    public static Resources resources;
 
     private ImageView sampleImageView;
     private Uri imageUri;
@@ -58,11 +66,16 @@ public class MainActivity extends AppCompatActivity {
     private LinearLayout swipeSurfaceLinearLayout;
     private LinearLayout spinnerLinearLayout;
     private TextView swipeSurfaceTextView;
-    private TextView spinnerTextView;
     private Spinner spinner;
-    private TextView concTextView;
+    private TextView concentrationTextView;
 
-    private static byte selectedAnalyte = 0; // 0 for glucose, 1 for uric acid
+    private float[] average;
+
+    private static StringBuilder stringBuilder = new StringBuilder();
+
+    private static SparseArray<String> analyteCandidates = new SparseArray<>();
+
+    private static int selectedAnalyte = 0; // 0 for glucose, 1 for uric acid
     private static boolean isInitialized = false;
 
     private static CustomSwiperListener swipeListener = new CustomSwiperListener();
@@ -92,13 +105,19 @@ public class MainActivity extends AppCompatActivity {
         swipeSurfaceLinearLayout = (LinearLayout) findViewById(R.id.linear_layout_hsv_surface);
         swipeSurfaceTextView = (TextView) findViewById(R.id.text_swipe_layout_surface);
         spinnerLinearLayout = (LinearLayout) findViewById(R.id.linear_layout_spinner);
-        spinnerTextView = (TextView) findViewById(R.id.spinner_title);
+        TextView spinnerTextView = (TextView) findViewById(R.id.spinner_title);
         spinner = (Spinner) findViewById(R.id.spinner);
-        concTextView = (TextView) findViewById(R.id.conc);
+        concentrationTextView = (TextView) findViewById(R.id.conc);
 
         alertTextView.setVisibility(View.GONE);
         swipeSurfaceTextView.setVisibility(View.GONE);
         spinnerLinearLayout.setVisibility(View.GONE);
+
+        resources = getResources();
+        String[] analyteArray = resources.getStringArray(R.array.analyte);
+        for (int i = 0; i < analyteArray.length; i++) {
+            analyteCandidates.put(i, analyteArray[i]);
+        }
 
         takePicBtn.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -168,14 +187,17 @@ public class MainActivity extends AppCompatActivity {
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
 
                 if (isInitialized) {
-                    String item = (String) spinner.getSelectedItem();
-                    Toast.makeText(MainActivity.this, "现在对" + item + "进行线性分析～", Toast.LENGTH_SHORT).show();
-                    if ("尿酸".equals(item)) {
-                        selectedAnalyte = 1;
-                    } else {
-                        selectedAnalyte = 0;
+                    String selectedItem = (String) spinner.getSelectedItem();
+                    Toast.makeText(MainActivity.this, "现在对" + selectedItem + "进行线性分析～", Toast.LENGTH_SHORT).show();
+
+                    for (int i = 0; i < analyteCandidates.size(); i++) {
+                        if (analyteCandidates.get(i).equals(selectedItem)) {
+                            selectedAnalyte = i;
+                            break;
+                        }
                     }
-                    displayConcResults();
+
+                    displayConcentrationInfo();
                 }
             }
 
@@ -257,35 +279,36 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void getColorInfo(int centerX, int centerY) {
-        ArrayList<Point> points = new ArrayList<>();
-        ArrayList<Integer> lists = new ArrayList<>();
+        stringBuilder.setLength(0);
+
+        ArrayList<Point> samplePoints = new ArrayList<>();
+        ArrayList<Integer> colorList = new ArrayList<>();
         int printedTextColor = 0;
         int sampleCount = 0;
 
-        String output = "";
-        float[] average;
-        float[] channels = null;
         average = new float[3];
+        float[][] channels = new float[SAMPLE_NUMBER_ROOT * SAMPLE_NUMBER_ROOT][3];
 
 //            Drawing 16 sampling points
-        int row = 4;
-        int col = 4;
+        int row = SAMPLE_NUMBER_ROOT;
+        int col = row;
         for (int i = 0; i < row; i++) {
             for (int j = 0; j < col; j++) {
-                points.add(new Point(centerX - 30 + 60 * j / col, centerY - 30 + 60 * i / row));
+                samplePoints.add(new Point(centerX - 30 + 60 * j / col, centerY - 30 + 60 * i / row));
             }
         }
 
-        for (Point p : points) {
+        for (Point p : samplePoints) {
             try {
-                lists.add(workingBitmap.getPixel(p.x, p.y));
+                colorList.add(workingBitmap.getPixel(p.x, p.y));
             } catch (IllegalArgumentException e) {}
         }
 
-        sampleCount = lists.size();
+        sampleCount = colorList.size();
 
 //        遍历取样点求取各通道均值
-        for (int sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++) {
+        if (sampleCount > 0) {
+            for (int sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++) {
 //            Integer[] channels = getRGBChannels(lists.get(sampleIndex));
 //            if (isHigherSDK) {
 //                output += (sampleIndex + 1) + "- R: " + channels[0] + ", G: " + channels[1] + ", B: " + channels[2] + ", a: " + channels[3] + " (L: " + ((double) channels[4] / 1000) + ")" + "\n";
@@ -310,25 +333,28 @@ public class MainActivity extends AppCompatActivity {
 //        colorDataTextView.setText(output);
 //        colorDataTextView.setTextColor(Color.argb(average[3], average[0], average[1], average[2]));
 
-
-            channels = getHSVChannels(lists.get(sampleIndex));
-//            output += (sampleIndex + 1) + "- H: " + channels[0] + ", S: " + channels[1] + ", V: " + channels[2] + "\n";
-            for (int channelIndex = 0; channelIndex < average.length; channelIndex++) {
-                average[channelIndex] += channels[channelIndex];
+                channels[sampleIndex] = getHSVChannels(colorList.get(sampleIndex));
+//                output += (sampleIndex + 1) + "- H: " + channels[0] + ", S: " + channels[1] + ", V: " + channels[2] + "\n";
+                for (int channelIndex = 0; channelIndex < average.length; channelIndex++) {
+                    average[channelIndex] += channels[sampleIndex][channelIndex];
+                }
             }
         }
+
         for (int channelIndex = 0; channelIndex < average.length; channelIndex++) {
             average[channelIndex] /= sampleCount;
         }
 
 //        检查H通道均值合理性并输出
-        if (Math.abs(average[0] - channels[0]) > Math.sqrt(average[0])) {
-            output += "取值误差较大，请重新取点！";
-            alertTextView.setText(output);
-            alertTextView.setVisibility(View.VISIBLE);
-            alertTextView.setBackgroundColor(Color.BLACK);
-            alertTextView.setTextColor(Color.WHITE);
-        } else {
+        for (float[] individualColorInfo : channels) {
+            if (Math.abs(average[0] - individualColorInfo[0]) > Math.sqrt(average[0])) {
+                stringBuilder.append("取值误差较大，请重新取点！");
+                alertTextView.setText(stringBuilder.toString());
+                alertTextView.setVisibility(View.VISIBLE);
+                alertTextView.setBackgroundColor(Color.BLACK);
+                alertTextView.setTextColor(Color.WHITE);
+                break;
+            }
             alertTextView.setVisibility(View.GONE);
         }
 
@@ -376,7 +402,7 @@ public class MainActivity extends AppCompatActivity {
             paint.setDither(true);
             int pointNum = 1;
 
-            for (Point p : points) {
+            for (Point p : samplePoints) {
                 canvas.drawPoint(p.x, p.y, paint);
                 canvas.drawText(String.valueOf(pointNum++), p.x + 2, p.y - 2, paint);
             }
@@ -385,8 +411,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         spinnerLinearLayout.setVisibility(View.VISIBLE);
-
-        displayConcResults();
+        displayConcentrationInfo();
     }
 
     private Integer[] getRGBChannels(int color) {
@@ -414,9 +439,25 @@ public class MainActivity extends AppCompatActivity {
         return hsv;
     }
 
-    private void displayConcResults() {
-        String concentration = "所选择回归曲线的序号为" + selectedAnalyte;
-        concTextView.setText(concentration);
+    private void displayConcentrationInfo() {
+        stringBuilder.setLength(0);
+        stringBuilder.append("所选择回归曲线的序号为：").append(selectedAnalyte).append("\n\n");
+        stringBuilder.append("样品点所对应").append(analyteCandidates.get(selectedAnalyte)).append("的浓度为：");
+        stringBuilder.append(getConcentrationFromColorInfo(average[1], selectedAnalyte));
+        concentrationTextView.setText(stringBuilder.toString());
+    }
+
+    private String getConcentrationFromColorInfo(double colorValue, int selectedAnalyte) {
+        double resultConcentration;
+        if (resources != null) {
+            String[] formulae = resources.getStringArray(R.array.formula_coefficients);
+            String[] formulaCoefficents = formulae[selectedAnalyte].trim().split(" ");
+            resultConcentration = colorValue * Double.parseDouble(formulaCoefficents[0]) + Double.parseDouble(formulaCoefficents[1]);
+
+            return String.format("%.3f", resultConcentration) + " (μM)";
+//            return String.format("%.3d", resultConcentration) + " k: " +  Double.parseDouble(formulaCoefficents[0]) + " b: " +  Double.parseDouble(formulaCoefficents[1]);
+        }
+        return "NULL";
     }
 
 //    @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
@@ -426,17 +467,19 @@ public class MainActivity extends AppCompatActivity {
                 //获取CameraManager
                 CameraManager mCameraManager = (CameraManager) this.getSystemService(Context.CAMERA_SERVICE);
                 //获取当前手机所有摄像头设备ID
-                String[] ids  = mCameraManager.getCameraIdList();
-                for (String id : ids) {
-                    CameraCharacteristics c = mCameraManager.getCameraCharacteristics(id);
-                    //查询该摄像头组件是否包含闪光灯
-                    Boolean flashAvailable = c.get(CameraCharacteristics.FLASH_INFO_AVAILABLE);
-                    Integer lensFacing = c.get(CameraCharacteristics.LENS_FACING);
-                    if (flashAvailable != null && flashAvailable
-                            && lensFacing != null && lensFacing == CameraCharacteristics.LENS_FACING_BACK) {
-                        //打开或关闭手电筒
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                            mCameraManager.setTorchMode(id, openOrClose);
+                if (mCameraManager != null) {
+                    String[] ids = mCameraManager.getCameraIdList();
+                    for (String id : ids) {
+                        CameraCharacteristics c = mCameraManager.getCameraCharacteristics(id);
+                        //查询该摄像头组件是否包含闪光灯
+                        Boolean flashAvailable = c.get(CameraCharacteristics.FLASH_INFO_AVAILABLE);
+                        Integer lensFacing = c.get(CameraCharacteristics.LENS_FACING);
+                        if (flashAvailable != null && flashAvailable
+                                && lensFacing != null && lensFacing == CameraCharacteristics.LENS_FACING_BACK) {
+                            //打开或关闭手电筒
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                mCameraManager.setTorchMode(id, openOrClose);
+                            }
                         }
                     }
                 }
@@ -450,32 +493,20 @@ public class MainActivity extends AppCompatActivity {
 class CustomSwiperListener implements SwipeLayout.SwipeListener {
 
     @Override
-    public void onStartOpen(SwipeLayout layout) {
-
-    }
+    public void onStartOpen(SwipeLayout layout) {}
 
     @Override
-    public void onOpen(SwipeLayout layout) {
-
-    }
+    public void onOpen(SwipeLayout layout) {}
 
     @Override
-    public void onStartClose(SwipeLayout layout) {
-
-    }
+    public void onStartClose(SwipeLayout layout) {}
 
     @Override
-    public void onClose(SwipeLayout layout) {
-
-    }
+    public void onClose(SwipeLayout layout) {}
 
     @Override
-    public void onUpdate(SwipeLayout layout, int leftOffset, int topOffset) {
-
-    }
+    public void onUpdate(SwipeLayout layout, int leftOffset, int topOffset) {}
 
     @Override
-    public void onHandRelease(SwipeLayout layout, float xvel, float yvel) {
-
-    }
+    public void onHandRelease(SwipeLayout layout, float xvel, float yvel) {}
 }

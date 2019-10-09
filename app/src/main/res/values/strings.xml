@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">便携式比色小程序</string>
     <string name="title_home">主页</string>
-    <string name="title_dashboard">Dashboard</string>
+    <string name="title_dashboard">管理</string>
     <string name="title_notifications">通知</string>
     <string name="spinner_prompt_title">请选择分析物</string>
     <string name="swipe_surface_text">&lt;&lt; HSV</string>

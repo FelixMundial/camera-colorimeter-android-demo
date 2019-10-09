@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="formula_coefficients">
+        <item name="glucose">
+            <k>0.0222</k>
+            <b>1.149</b>
+        </item>
+        <item name="uricAcid">
+            <k>13.23</k>
+            <b>19.68</b>
+        </item>
+        <item name="c">
+            <k>0.0222</k>
+            <b>1.149</b>
+        </item>
+        <item name="d">
+            <k>13.23</k>
+            <b>19.68</b>
+        </item>
+    </string-array>
+</resources>

@@ -116,7 +116,7 @@
                         android:layout_weight="1"
                         android:textSize="20sp"
                         android:id="@+id/hsvh"
-                        android:padding="10dp"
+                        android:padding="5dp"
                         android:gravity="center"
                         android:layout_gravity="center" />
                     <TextView
@@ -125,7 +125,7 @@
                         android:layout_weight="1"
                         android:textSize="20sp"
                         android:id="@+id/hsvs"
-                        android:padding="10dp"
+                        android:padding="5dp"
                         android:gravity="center"
                         android:layout_gravity="center" />
                     <TextView
@@ -134,7 +134,7 @@
                         android:layout_weight="1"
                         android:textSize="20sp"
                         android:id="@+id/hsvv"
-                        android:padding="10dp"
+                        android:padding="5dp"
                         android:gravity="center"
                         android:layout_gravity="center" />
                 </LinearLayout>
@@ -188,7 +188,11 @@
                 android:layout_height="wrap_content"
                 android:textSize="20sp"
                 android:id="@+id/conc"
-                android:layout_gravity="center" />
+                android:layout_gravity="center"
+                android:paddingBottom="30dp"
+                android:layout_marginLeft="30dp"
+                android:layout_marginRight="30dp"
+                android:visibility="gone"/>
 
         </LinearLayout>
 

@@ -69,8 +69,10 @@ fastlane/screenshots
 fastlane/test_output
 fastlane/readme.md
 
-# -- custom --
+
 # Android Studio auto-generated testing classes
 app/src/androidTest/
 app/src/test/
 
+# psd files
+/product.psd
